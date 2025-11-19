@@ -1,0 +1,44 @@
+name: RDP Free 2025
+
+on: workflow_dispatch
+
+jobs:
+  rdp:
+    runs-on: windows-latest
+    timeout-minutes: 1440
+
+    steps:
+      - name: Enable RDP
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+          netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
+
+      - name: Create Admin User
+        run: |
+          net user hacker 147258369@ /add
+          net localgroup administrators hacker /add
+          net localgroup "Remote Desktop Users" hacker /add
+
+      - name: Install Tailscale
+        run: |
+          Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi -OutFile tailscale.msi
+          Start-Process msiexec.exe -ArgumentList '/i tailscale.msi /quiet' -Wait
+
+      - name: Connect Tailscale
+        run: |
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=rdp-2025
+          Start-Sleep 15
+          $ip = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
+          echo "RDP_IP=$ip" >> $env:GITHUB_ENV
+
+      - name: Show Info
+        run: |
+          Write-Host "RDP Ready"
+          Write-Host "IP: $($env:RDP_IP)"
+          Write-Host "User: hacker"
+          Write-Host "Pass: 147258369@"
+
+      - name: Keep Alive
+        run: |
+          while($true) { Start-Sleep 3600; Write-Host "Active $(Get-Date)" }
